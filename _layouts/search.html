@@ -41,7 +41,7 @@
     </div>
     {% include search_templates.html %}
     <script src="https://cdn.jsdelivr.net/instantsearch.js/1/instantsearch.min.js"></script>
-    <script src={{ "/public/js/searchpage.js" | prepend: site.baseurl }}></script>
+    {% include script.html src="searchpage.js" %}
     {% include footer.html %}
     </body>
 </html>

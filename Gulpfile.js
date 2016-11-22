@@ -6,9 +6,11 @@ const minify      = require('gulp-minify');
 
 const browserSync = require('browser-sync').create();
 const spawn       = require('child_process').spawn;
+const fs          = require('fs');
 const _           = require('lodash');
 const del         = require('del');
 const runSequence = require('run-sequence');
+const uuid        = require('node-uuid');
 
 const PORT          = 3000;
 const DIST_FOLDER   = '_site';            // DO NOT CHANGE THIS, IS USED BY TRAVIS FOR DEPLOYMENT IN MANIFEST
@@ -30,6 +32,17 @@ const paths = {
     src: '_assets/js/**/*.js',
     dest: `${DIST_FOLDER}/public/js`
   }
+}
+let cacheID = uuid.v4().replace(/-/g, '');
+
+/*************************************************
+    Write cache json
+**************************************************/
+const writeCacheJson = (cb) => {
+  const hash = { 'cache' : cacheID };
+  fs.writeFile('./_data/hashes.json', JSON.stringify(hash, null, 2), (err) => {
+    cb(err);
+  });
 }
 
 /*************************************************
@@ -88,10 +101,24 @@ gulp.task('clean', () => {
   ], { force: true });
 });
 
+gulp.task('write-cache-file', (done) => {
+  writeCacheJson((err) => {
+    if (err) {
+      throw new gutil.PluginError({
+        plugin: 'write-cache-file',
+        message: `Something went wrong while writing the cache file in _data/hashes.json: ${err}`
+      });
+    } else {
+      done();
+    }
+  });
+});
+
 gulp.task('copy:images', () => {
   return gulp
     .src(paths.images.src)
-    .pipe(gulp.dest(paths.images.dest));
+    .pipe(gulp.dest(paths.images.dest))
+    .pipe(browserSync.stream());
 });
 
 gulp.task('compress:js', () => {
@@ -99,11 +126,12 @@ gulp.task('compress:js', () => {
     .src(paths.scripts.src)
     .pipe(minify({
       ext: {
-        src: '-debug.js',
-        min: '.js'
+        src: '.js',
+        min: `-${cacheID}.js`
       }
     }))
-    .pipe(gulp.dest(paths.scripts.dest));
+    .pipe(gulp.dest(paths.scripts.dest))
+    .pipe(browserSync.stream());
 });
 
 gulp.task('sass:build', () => {
@@ -127,17 +155,24 @@ gulp.task('sass:dev', () => {
     .pipe(browserSync.stream());
 });
 
-gulp.task('jekyll:build', [], done => {
-  spawnJekyll(false, false, (code) => {
+const build = (t, cb) => {
+  spawnJekyll(t, false, (code) => {
     if (code !== 0) {
       throw new gutil.PluginError({
         plugin: 'jekyll:build',
         message: `Jekyll exit code is ${code}, check your Jekyll setup`
       });
     } else {
-      done();
+      cb();
     }
   });
+}
+
+gulp.task('jekyll:build', [], done => {
+  build(false, done);
+});
+gulp.task('jekyll:build-test', [], done => {
+  build(true, done);
 });
 
 gulp.task('dev', ['sass:dev', 'copy:images', 'compress:js'], done => {
@@ -155,9 +190,13 @@ gulp.task('dev', ['sass:dev', 'copy:images', 'compress:js'], done => {
 });
 
 gulp.task('serve', done => {
-  runSequence('clean', 'dev');
+  runSequence('clean', 'write-cache-file', 'dev');
 })
 
 gulp.task('build', done => {
-  runSequence('clean', ['jekyll:build', 'sass:build', 'copy:images', 'compress:js'], done);
+  runSequence('clean', 'write-cache-file', ['jekyll:build', 'sass:build', 'copy:images', 'compress:js'], done);
+});
+
+gulp.task('build-test', done => {
+  runSequence('clean', 'write-cache-file', ['jekyll:build-test', 'sass:build', 'copy:images', 'compress:js'], done);
 });

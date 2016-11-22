@@ -1,0 +1,8 @@
+{% strip %}
+{% assign src = include.src %}
+{% if site.production == true %}
+  <script src="{{ src | prepend: "/public/js/" | prepend: site.baseurl | replace: '.js', '-' | append: site.data.hashes.cache | append: '.js' }}" type="text/javascript" /></script>
+{% else %}
+  <script src="{{ src | prepend: "/public/js/" | prepend: site.baseurl }}" type="text/javascript" /></script>
+{% endif %}
+{% endstrip %}
