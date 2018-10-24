@@ -37,3 +37,7 @@ See [Tab page](tab-page).
 {{% snippet file="refguide/Visibility+Property.md" %}}
 
 {{% snippet file="refguide/Visibility+Property+With+Module+Roles+Simple.md" %}}
+
+## Lazy loading 
+
+DataGrid placed in a hidden tab will be loaded only when the containing tab shown.
